@@ -20,3 +20,7 @@ opt-level = "z"
 codegen-units = 1
 panic = "abort"
 strip = "symbols"
+
+[[bin]]
+name = "onion_scraper"
+path = "src/main.rs"
