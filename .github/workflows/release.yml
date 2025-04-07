@@ -1,4 +1,4 @@
-name: Rust Release
+name: Cross-Platform Rust Release
 
 on:
   push:
@@ -9,12 +9,19 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-release:
-    name: Build and Publish Release
+  build:
+    name: Build for Linux, Windows and macOS
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-pc-windows-gnu
+          - x86_64-apple-darwin
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Rust
@@ -22,20 +29,35 @@ jobs:
         with:
           toolchain: stable
           override: true
+          components: rust-src
+
+      - name: Install cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
 
       - name: Build release binary
-        run: cargo build --release
+        run: cross build --release --target ${{ matrix.target }}
 
-      - name: Create release archive
+      - name: Package binary
         run: |
-          mkdir release
-          cp target/release/onion_scraper release/
-          cd release
-          tar -czf onion_scraper-x86_64-unknown-linux-gnu.tar.gz onion_scraper
+          mkdir -p dist
+          BIN_NAME=onion_scraper
+          TARGET=${{ matrix.target }}
+          
+          case $TARGET in
+            *windows*) BIN_PATH=target/$TARGET/release/${BIN_NAME}.exe ;;
+            *) BIN_PATH=target/$TARGET/release/${BIN_NAME} ;;
+          esac
+          
+          ARCHIVE_NAME=${BIN_NAME}-${TARGET}.tar.gz
+          mkdir -p tmp && cp "$BIN_PATH" tmp/
+          tar -czf dist/$ARCHIVE_NAME -C tmp .
+          rm -rf tmp
 
-      - name: Publish GitHub Release
+      - name: Upload artifact to GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: release/onion_scraper-x86_64-unknown-linux-gnu.tar.gz
+          files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
