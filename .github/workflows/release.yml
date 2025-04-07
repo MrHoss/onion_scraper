@@ -9,58 +9,91 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    name: Build and Release
+  build-linux:
+    name: Build Linux
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target: [x86_64-unknown-linux-gnu, x86_64-pc-windows-gnu, x86_64-apple-darwin]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: ${{ matrix.target }}
           override: true
 
-      - name: Install cross
-        run: cargo install cross
-
-      - name: Build with cross
-        run: cross build --release --target ${{ matrix.target }}
-
-      - name: Show build output
-        run: ls -R target/
+      - name: Build binary
+        run: cargo build --release
 
       - name: Package binary
         run: |
           mkdir -p dist
-          BIN_NAME=onion_scraper
-          TARGET=${{ matrix.target }}
-
-          if [[ "$TARGET" == *windows* ]]; then
-            BIN_PATH="target/$TARGET/release/${BIN_NAME}.exe"
-          else
-            BIN_PATH="target/$TARGET/release/${BIN_NAME}"
-          fi
-
-          if [ ! -f "$BIN_PATH" ]; then
-            echo "❌ Binary not found at: $BIN_PATH"
-            exit 1
-          fi
-
-          ARCHIVE_NAME="${BIN_NAME}-${TARGET}.tar.gz"
-          mkdir -p tmp && cp "$BIN_PATH" tmp/
-          tar -czf dist/$ARCHIVE_NAME -C tmp .
-          rm -rf tmp
+          cp target/release/onion_scraper dist/
+          cd dist
+          tar -czvf onion_scraper-linux-x86_64.tar.gz onion_scraper
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: dist/onion_scraper-linux-x86_64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build binary
+        run: cargo build --release
+
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          cp target/release/onion_scraper dist/
+          cd dist
+          tar -czvf onion_scraper-macos-x86_64.tar.gz onion_scraper
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/onion_scraper-macos-x86_64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build binary
+        run: cargo build --release
+
+      - name: Package binary
+        run: |
+          mkdir dist
+          copy target\release\onion_scraper.exe dist\
+          powershell Compress-Archive -Path dist\onion_scraper.exe -DestinationPath dist\onion_scraper-windows-x86_64.zip
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/onion_scraper-windows-x86_64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
