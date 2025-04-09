@@ -1,6 +1,3 @@
-### ✅ `README.md` (atualizado com **GPL**, instruções de build e execução):
-
-```markdown
 # Onion Scraper
 
 A multithreaded `.onion` address tester that attempts to discover reachable Tor hidden services by generating random v3 addresses and checking their availability through the Tor network.
